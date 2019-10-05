@@ -2,9 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+)
+
+var (
+	port = 3000
 )
 
 type User struct {
@@ -14,18 +21,30 @@ type User struct {
 	Password string `json:"password"`
 }
 
-var users = []User{
-	{ID: "1", Name: "juan", Email: "juan@mail.com", Password: "1234"},
-	{ID: "2", Name: "pedro", Email: "pedro@mail.com", Password: "1234"},
-}
-
-func getUsersHandler(w http.ResponseWriter, r *http.Request) {
+func getUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+	vars := mux.Vars(r)
+	usr, err := getUser(vars["user"])
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if usr != nil {
+		json.NewEncoder(w).Encode(usr)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
 }
 
 func main() {
+	loadEnvVars()
 	r := mux.NewRouter()
-	r.HandleFunc("/users", getUsersHandler).Methods("GET")
-	http.ListenAndServe(":3000", r)
+	r.HandleFunc("/users/{user}", getUserHandler).Methods("GET")
+	fmt.Printf("Starting the server on :%d...\n", port)
+	http.ListenAndServe(fmt.Sprintf(":%d", port), r)
+}
+
+func loadEnvVars() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 }
