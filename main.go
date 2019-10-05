@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/jcamilom/ecommerce/models"
+
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
@@ -14,25 +16,19 @@ var (
 	port = 3000
 )
 
-type User struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func getUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
-	usr := new(User)
-	db := &DB{}
-	found, err := db.GetItem("Email", vars["user"], "Users", usr)
+	us := models.NewUserService()
+	user, err := us.ByEmail(vars["user"])
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	} else if found == false {
-		w.WriteHeader(http.StatusNotFound)
+		if err == models.ErrNotFound {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	} else {
-		json.NewEncoder(w).Encode(usr)
+		json.NewEncoder(w).Encode(user)
 	}
 }
 
