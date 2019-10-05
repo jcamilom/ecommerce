@@ -17,7 +17,7 @@ type DB struct{}
 
 // GetItem gets an item from the database. If nothing is found false is returned
 // as the first argument. Otherwise true is returned
-func (db *DB) GetItem(keyName string, keyValue string, tableName string, out interface{}) (bool, error) {
+func (db *DB) GetItem(keyName string, keyValue string, tableName string, dst interface{}) (bool, error) {
 	// Prepare the input for the query.
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
@@ -38,7 +38,7 @@ func (db *DB) GetItem(keyName string, keyValue string, tableName string, out int
 		return false, nil
 	}
 
-	err = dynamodbattribute.UnmarshalMap(result.Item, out)
+	err = dynamodbattribute.UnmarshalMap(result.Item, dst)
 	if err != nil {
 		return false, err
 	}
