@@ -40,6 +40,7 @@ func main() {
 	usersC := controllers.NewUsers(us)
 
 	r := mux.NewRouter()
+	r.HandleFunc("/login", usersC.Login).Methods("POST")
 	r.HandleFunc("/users", usersC.Create).Methods("POST")
 	r.HandleFunc("/users/{user}", getUserHandler).Methods("GET")
 	fmt.Printf("Starting the server on :%d...\n", port)
