@@ -11,7 +11,7 @@ var (
 	dbTableName = "Users"
 
 	// The DB primary key for users
-	dbKeyName = "Email"
+	dbKeyName = "email"
 
 	// ErrNotFound is returned when a resource cannot be found
 	// in the database.
@@ -42,6 +42,11 @@ func (us *UserService) ByEmail(email string) (*User, error) {
 	} else {
 		return user, nil
 	}
+}
+
+// Create will create the provided user in the database
+func (us *UserService) Create(user *User) error {
+	return us.db.PutItem(dbTableName, user)
 }
 
 type User struct {
