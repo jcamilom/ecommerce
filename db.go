@@ -9,13 +9,15 @@ import (
 
 var db = dynamodb.New(session.New(), aws.NewConfig().WithRegion("us-east-1"))
 
-func getUser(email string) (*User, error) {
+// getItem gets an item from the database. If nothing is found false is returned
+// as the first argument. Otherwise true is returned
+func getItem(keyName string, keyValue string, tableName string, out interface{}) (bool, error) {
 	// Prepare the input for the query.
 	input := &dynamodb.GetItemInput{
-		TableName: aws.String("Users"),
+		TableName: aws.String(tableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			"Email": {
-				S: aws.String(email),
+			keyName: {
+				S: aws.String(keyValue),
 			},
 		},
 	}
@@ -24,17 +26,16 @@ func getUser(email string) (*User, error) {
 	// return nil.
 	result, err := db.GetItem(input)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 	if result.Item == nil {
-		return nil, nil
+		return false, nil
 	}
 
-	user := new(User)
-	err = dynamodbattribute.UnmarshalMap(result.Item, user)
+	err = dynamodbattribute.UnmarshalMap(result.Item, out)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	return user, nil
+	return true, nil
 }

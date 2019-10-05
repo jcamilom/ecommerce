@@ -24,13 +24,14 @@ type User struct {
 func getUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
-	usr, err := getUser(vars["user"])
+	usr := new(User)
+	found, err := getItem("Email", vars["user"], "Users", usr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-	} else if usr != nil {
-		json.NewEncoder(w).Encode(usr)
-	} else {
+	} else if found == false {
 		w.WriteHeader(http.StatusNotFound)
+	} else {
+		json.NewEncoder(w).Encode(usr)
 	}
 }
 
