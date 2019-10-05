@@ -19,6 +19,8 @@ var (
 	ErrNotFound = errors.New("models: resource not found")
 )
 
+const userPwPepper = "secret-random-string"
+
 func NewUserService() *UserService {
 	db := &db.DB{}
 	return &UserService{
@@ -47,7 +49,8 @@ func (us *UserService) ByEmail(email string) (*User, error) {
 
 // Create will create the provided user in the database
 func (us *UserService) Create(user *User) error {
-	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	pwBytes := []byte(user.Password + userPwPepper)
+	hashedBytes, err := bcrypt.GenerateFromPassword(pwBytes, bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
