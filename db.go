@@ -7,11 +7,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
 
-var db = dynamodb.New(session.New(), aws.NewConfig().WithRegion("us-east-1"))
+var _db = dynamodb.New(session.New(), aws.NewConfig().WithRegion("us-east-1"))
 
-// getItem gets an item from the database. If nothing is found false is returned
+// DB is the service to interact with the database
+type DB struct{}
+
+// GetItem gets an item from the database. If nothing is found false is returned
 // as the first argument. Otherwise true is returned
-func getItem(keyName string, keyValue string, tableName string, out interface{}) (bool, error) {
+func (db *DB) GetItem(keyName string, keyValue string, tableName string, out interface{}) (bool, error) {
 	// Prepare the input for the query.
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
@@ -24,7 +27,7 @@ func getItem(keyName string, keyValue string, tableName string, out interface{})
 
 	// Retrieve the item from DynamoDB. If no matching item is found
 	// return nil.
-	result, err := db.GetItem(input)
+	result, err := _db.GetItem(input)
 	if err != nil {
 		return false, err
 	}

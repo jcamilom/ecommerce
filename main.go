@@ -25,7 +25,8 @@ func getUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	usr := new(User)
-	found, err := getItem("Email", vars["user"], "Users", usr)
+	db := &DB{}
+	found, err := db.GetItem("Email", vars["user"], "Users", usr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else if found == false {
