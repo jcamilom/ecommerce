@@ -9,14 +9,14 @@ import (
 )
 
 // NewUsers is used to create a new Users controller
-func NewUsers(us *models.UserService) *Users {
+func NewUsers(us models.UserService) *Users {
 	return &Users{
 		us: us,
 	}
 }
 
 type Users struct {
-	us *models.UserService
+	us models.UserService
 }
 
 // Create is used to process the register data. This is used

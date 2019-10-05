@@ -25,6 +25,18 @@ var (
 
 const userPwPepper = "secret-random-string"
 
+// User represents the user model stored in the database
+// This is used for user accounts, storing both an email
+// address and a password so users can log in and gain
+// access to their content.
+type User struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	Password     string `json:"password"`
+	PasswordHash string `json:"passwordhash"`
+}
+
 // UserDB is used to interact with the users database.
 //
 // For pretty much all single user queries:
@@ -43,22 +55,70 @@ type UserDB interface {
 	Create(user *User) error
 }
 
-func NewUserService() *UserService {
+// UserService is a set of methods used to manipulate and
+// work with the user model
+type UserService interface {
+	// Authenticate will verify the provided email address and
+	// password are correct. If they are correct, the user
+	// corresponding to that email will be returned. Otherwise
+	// You will receive either:
+	// ErrNotFound, ErrInvalidPassword, or another error if
+	// something goes wrong.
+	Authenticate(email, password string) (*User, error)
+	UserDB
+}
+
+func NewUserService() UserService {
 	udb := newUserDB()
-	return &UserService{
+	return &userService{
 		UserDB: &userValidator{
 			UserDB: udb,
 		},
 	}
 }
 
-type UserService struct {
+var _ UserService = &userService{}
+
+type userService struct {
 	UserDB
 }
+
+// Authenticate can be used to authenticate a user with the
+// provided email address and password.
+// If the email address provided is invalid, this will return
+//   nil, ErrNotFound
+// If the password provided is invalid, this will return
+//   nil, ErrInvalidPassword
+// If the email and password are both valid, this will return
+//   user, nil
+// Otherwise if another error is encountered this will return
+//   nil, error
+func (us *userService) Authenticate(email, password string) (*User, error) {
+	foundUser, err := us.ByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(foundUser.PasswordHash), []byte(password+userPwPepper))
+	if err != nil {
+		switch err {
+		case bcrypt.ErrMismatchedHashAndPassword:
+			return nil, ErrInvalidPassword
+		default:
+			return nil, err
+		}
+	}
+
+	return foundUser, nil
+}
+
+var _ UserDB = &userValidator{}
 
 type userValidator struct {
 	UserDB
 }
+
+var _ UserDB = &userDB{}
 
 func newUserDB() *userDB {
 	db := &db.DB{}
@@ -66,8 +126,6 @@ func newUserDB() *userDB {
 		db: db,
 	}
 }
-
-var _ UserDB = &userDB{}
 
 type userDB struct {
 	db *db.DB
@@ -88,35 +146,6 @@ func (udb *userDB) ByEmail(email string) (*User, error) {
 	}
 }
 
-// Authenticate can be used to authenticate a user with the
-// provided email address and password.
-// If the email address provided is invalid, this will return
-//   nil, ErrNotFound
-// If the password provided is invalid, this will return
-//   nil, ErrInvalidPassword
-// If the email and password are both valid, this will return
-//   user, nil
-// Otherwise if another error is encountered this will return
-//   nil, error
-func (us *UserService) Authenticate(email, password string) (*User, error) {
-	foundUser, err := us.ByEmail(email)
-	if err != nil {
-		return nil, err
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(foundUser.PasswordHash), []byte(password+userPwPepper))
-	if err != nil {
-		switch err {
-		case bcrypt.ErrMismatchedHashAndPassword:
-			return nil, ErrInvalidPassword
-		default:
-			return nil, err
-		}
-	}
-
-	return foundUser, nil
-}
-
 // Create will create the provided user in the database
 func (udb *userDB) Create(user *User) error {
 	pwBytes := []byte(user.Password + userPwPepper)
@@ -127,12 +156,4 @@ func (udb *userDB) Create(user *User) error {
 	user.PasswordHash = string(hashedBytes)
 	user.Password = ""
 	return udb.db.PutItem(dbTableName, user)
-}
-
-type User struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Email        string `json:"email"`
-	Password     string `json:"password"`
-	PasswordHash string `json:"passwordhash"`
 }
