@@ -1,6 +1,9 @@
 package db
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -41,4 +44,21 @@ func (db *DB) GetItem(keyName string, keyValue string, tableName string, out int
 	}
 
 	return true, nil
+}
+
+// PutItem adds a new record to db
+func (db *DB) PutItem(tableName string, item interface{}) error {
+	av, err := dynamodbattribute.MarshalMap(item)
+	if err != nil {
+		// Bad request
+		log.Println(fmt.Sprintf("failed to DynamoDB marshal Record, %v", err))
+		return err
+	}
+
+	input := &dynamodb.PutItemInput{
+		TableName: aws.String(tableName),
+		Item:      av,
+	}
+	_, err = _db.PutItem(input)
+	return err
 }
