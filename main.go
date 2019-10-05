@@ -2,9 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+)
+
+var (
+	port = 3000
 )
 
 type User struct {
@@ -28,7 +35,16 @@ func getUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	loadEnvVars()
 	r := mux.NewRouter()
 	r.HandleFunc("/users/{user}", getUserHandler).Methods("GET")
-	http.ListenAndServe(":3000", r)
+	fmt.Printf("Starting the server on :%d...\n", port)
+	http.ListenAndServe(fmt.Sprintf(":%d", port), r)
+}
+
+func loadEnvVars() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 }
