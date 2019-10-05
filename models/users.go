@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/jcamilom/ecommerce/db"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -46,12 +47,19 @@ func (us *UserService) ByEmail(email string) (*User, error) {
 
 // Create will create the provided user in the database
 func (us *UserService) Create(user *User) error {
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	user.PasswordHash = string(hashedBytes)
+	user.Password = ""
 	return us.db.PutItem(dbTableName, user)
 }
 
 type User struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	Password     string `json:"password"`
+	PasswordHash string `json:"passwordhash"`
 }

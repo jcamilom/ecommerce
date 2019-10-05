@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/jcamilom/ecommerce/models"
@@ -45,7 +46,9 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(ur)
+		json.NewEncoder(w).Encode(&response{
+			Message: fmt.Sprintf("User %v created!", user.Name),
+		})
 	}
 }
 
@@ -53,4 +56,8 @@ type createUserRequest struct {
 	Email    string `json:"email"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
+}
+
+type response struct {
+	Message string `json:"message"`
 }
