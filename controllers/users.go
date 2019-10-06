@@ -38,7 +38,7 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		Email:    ur.Email,
 		Password: ur.Password,
 	}
-	err = u.us.Create(&user)
+	err = u.us.Register(&user)
 	if err != nil {
 		switch err {
 		case models.ErrEmailRequired, models.ErrEmailInvalid, models.ErrEmailTaken, models.ErrPasswordRequired, models.ErrPasswordTooShort, models.ErrNameRequired:

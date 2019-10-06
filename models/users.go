@@ -85,7 +85,7 @@ type UserDB interface {
 	ByEmail(email string) (*User, error)
 	// Methods for altering users
 	Create(user *User) error
-	updateToken(user *User) error
+	Update(user *User, update interface{}, updateExp string) error
 }
 
 // UserService is a set of methods used to manipulate and
@@ -98,15 +98,17 @@ type UserService interface {
 	// ErrNotFound, ErrPasswordIncorrect, or another error if
 	// something goes wrong.
 	Authenticate(email, password string) (*User, error)
+	Register(user *User) error
 	UserDB
 }
 
 func NewUserService() UserService {
 	udb := newUserDB()
 	session := session.NewSessionService(sessionExpireTime, sessionKey)
-	uv := newUserValidator(udb, session)
+	uv := newUserValidator(udb)
 	return &userService{
-		UserDB: uv,
+		session: session,
+		UserDB:  uv,
 	}
 }
 
@@ -114,6 +116,33 @@ var _ UserService = &userService{}
 
 type userService struct {
 	UserDB
+	session *session.Session
+}
+
+// Register is used to register a new user in the db. Additionally
+// an access token is created for the user and returned
+func (us *userService) Register(user *User) error {
+	err := us.UserDB.Create(user)
+	if err != nil {
+		return err
+	}
+
+	token, err := us.session.CreateToken(user.Email)
+	if err != nil {
+		return err
+	}
+	user.AccessToken = token
+	update := struct {
+		AccessToken string `json:":t"`
+	}{
+		AccessToken: token,
+	}
+	updateExp := "set access_token = :t"
+	err = us.UserDB.Update(user, update, updateExp)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Authenticate can be used to authenticate a user with the
@@ -141,7 +170,13 @@ func (us *userService) Authenticate(email, password string) (*User, error) {
 			return nil, err
 		}
 	}
-	err = us.UserDB.updateToken(foundUser)
+	update := struct {
+		AccessToken string `json:":t"`
+	}{
+		AccessToken: foundUser.AccessToken,
+	}
+	updateExp := "set access_token = :t"
+	err = us.UserDB.Update(foundUser, update, updateExp)
 	if err != nil {
 		return nil, err
 	}
@@ -162,17 +197,15 @@ func runUserValFuncs(user *User, fns ...userValFunc) error {
 
 var _ UserDB = &userValidator{}
 
-func newUserValidator(udb UserDB, session *session.Session) *userValidator {
+func newUserValidator(udb UserDB) *userValidator {
 	return &userValidator{
 		UserDB:     udb,
-		session:    session,
 		emailRegex: regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,16}$`),
 	}
 }
 
 type userValidator struct {
 	UserDB
-	session    *session.Session
 	emailRegex *regexp.Regexp
 }
 
@@ -200,7 +233,6 @@ func (uv *userValidator) Create(user *User) error {
 		uv.emailIsAvail,
 		uv.normalizeName,
 		uv.requiredName,
-		uv.setToken,
 	)
 	if err != nil {
 		return err
@@ -208,14 +240,9 @@ func (uv *userValidator) Create(user *User) error {
 	return uv.UserDB.Create(user)
 }
 
-// updateToken set the session token in the db
-func (uv *userValidator) updateToken(user *User) error {
-	err := runUserValFuncs(user, uv.setToken)
-	if err != nil {
-		return err
-	}
-
-	return uv.UserDB.updateToken(user)
+// Update update the provided user with the update key and updated expression.
+func (uv *userValidator) Update(user *User, update interface{}, updateExp string) error {
+	return uv.UserDB.Update(user, update, updateExp)
 }
 
 // bcryptPassword will hash a user's password with a
@@ -232,15 +259,6 @@ func (uv *userValidator) bcryptPassword(user *User) error {
 	}
 	user.PasswordHash = string(hashedBytes)
 	user.Password = ""
-	return nil
-}
-
-func (uv *userValidator) setToken(user *User) error {
-	token, err := uv.session.CreateToken(user.Email)
-	if err != nil {
-		return err
-	}
-	user.AccessToken = token
 	return nil
 }
 
@@ -347,16 +365,10 @@ func (udb *userDB) Create(user *User) error {
 
 // updateToken will update the user token field with the data
 // specified by the provided user
-func (udb *userDB) updateToken(user *User) error {
+func (udb *userDB) Update(user *User, update interface{}, updateExp string) error {
 	key := userTableQueryKey{
 		Email: user.Email,
 	}
-	update := struct {
-		AccessToken string `json:":t"`
-	}{
-		AccessToken: user.AccessToken,
-	}
-	updateExp := "set access_token = :t"
 	return udb.db.UpdateItem(dbUsersTableName, key, update, updateExp)
 }
 
