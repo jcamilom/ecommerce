@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jcamilom/ecommerce/db"
+	"github.com/jcamilom/ecommerce/session"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -50,6 +51,10 @@ var (
 )
 
 const userPwPepper = "secret-random-string"
+const sessionKey = "my_secret_key"
+
+// Token expire time in minutes
+const sessionExpireTime = 5
 
 // User represents the user model stored in the database
 // This is used for user accounts, storing both an email
@@ -61,6 +66,7 @@ type User struct {
 	Email        string `json:"email"`
 	Password     string `json:"password"`
 	PasswordHash string `json:"passwordhash"`
+	Token        string `json:"token"`
 }
 
 // UserDB is used to interact with the users database.
@@ -96,7 +102,8 @@ type UserService interface {
 
 func NewUserService() UserService {
 	udb := newUserDB()
-	uv := newUserValidator(udb)
+	session := session.NewSessionService(sessionExpireTime, sessionKey)
+	uv := newUserValidator(udb, session)
 	return &userService{
 		UserDB: uv,
 	}
@@ -150,15 +157,17 @@ func runUserValFuncs(user *User, fns ...userValFunc) error {
 
 var _ UserDB = &userValidator{}
 
-func newUserValidator(udb UserDB) *userValidator {
+func newUserValidator(udb UserDB, session *session.Session) *userValidator {
 	return &userValidator{
 		UserDB:     udb,
+		session:    session,
 		emailRegex: regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,16}$`),
 	}
 }
 
 type userValidator struct {
 	UserDB
+	session    *session.Session
 	emailRegex *regexp.Regexp
 }
 
@@ -186,6 +195,7 @@ func (uv *userValidator) Create(user *User) error {
 		uv.emailIsAvail,
 		uv.normalizeName,
 		uv.requiredName,
+		uv.setToken,
 	)
 	if err != nil {
 		return err
@@ -207,6 +217,15 @@ func (uv *userValidator) bcryptPassword(user *User) error {
 	}
 	user.PasswordHash = string(hashedBytes)
 	user.Password = ""
+	return nil
+}
+
+func (uv *userValidator) setToken(user *User) error {
+	token, err := uv.session.CreateToken(user.Email)
+	if err != nil {
+		return err
+	}
+	user.Token = token
 	return nil
 }
 
