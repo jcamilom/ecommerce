@@ -58,7 +58,12 @@ type productDB struct {
 // ByID will look up a product with the provided ID.
 func (pdb *productDB) ByID(id string) (*Product, error) {
 	p := new(Product)
-	found, err := pdb.db.GetItem(dbProductsKeyName, id, dbProductsTableName, p)
+	key := struct {
+		ID string `json:"id"`
+	}{
+		ID: id,
+	}
+	found, err := pdb.db.GetItem(key, dbProductsTableName, p)
 	if err != nil {
 		return nil, err
 	} else if found == false {

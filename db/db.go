@@ -17,15 +17,16 @@ type DB struct{}
 
 // GetItem gets an item from the database. If nothing is found false is returned
 // as the first argument. Otherwise true is returned
-func (db *DB) GetItem(keyName string, keyValue string, tableName string, dst interface{}) (bool, error) {
+func (db *DB) GetItem(key interface{}, tableName string, dst interface{}) (bool, error) {
+	_key, err := dynamodbattribute.MarshalMap(key)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to DynamoDB marshal getItem key, %v", err))
+		return false, err
+	}
 	// Prepare the input for the query.
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			keyName: {
-				S: aws.String(keyValue),
-			},
-		},
+		Key:       _key,
 	}
 
 	// Retrieve the item from DynamoDB. If no matching item is found

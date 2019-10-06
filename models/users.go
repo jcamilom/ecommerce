@@ -293,7 +293,12 @@ type userDB struct {
 // If the user is not found, we will return ErrNotFound
 func (udb *userDB) ByEmail(email string) (*User, error) {
 	user := new(User)
-	found, err := udb.db.GetItem(dbUsersKeyName, email, dbUsersTableName, user)
+	key := struct {
+		Email string `json:"email"`
+	}{
+		Email: email,
+	}
+	found, err := udb.db.GetItem(key, dbUsersTableName, user)
 	if err != nil {
 		return nil, err
 	} else if found == false {
