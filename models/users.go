@@ -126,23 +126,7 @@ func (us *userService) Register(user *User) error {
 	if err != nil {
 		return err
 	}
-
-	token, err := us.session.CreateToken(user.Email)
-	if err != nil {
-		return err
-	}
-	user.AccessToken = token
-	update := struct {
-		AccessToken string `json:":t"`
-	}{
-		AccessToken: token,
-	}
-	updateExp := "set access_token = :t"
-	err = us.UserDB.Update(user, update, updateExp)
-	if err != nil {
-		return err
-	}
-	return nil
+	return us.updateToken(user)
 }
 
 // Authenticate can be used to authenticate a user with the
@@ -170,18 +154,27 @@ func (us *userService) Authenticate(email, password string) (*User, error) {
 			return nil, err
 		}
 	}
-	update := struct {
-		AccessToken string `json:":t"`
-	}{
-		AccessToken: foundUser.AccessToken,
-	}
-	updateExp := "set access_token = :t"
-	err = us.UserDB.Update(foundUser, update, updateExp)
+	err = us.updateToken(foundUser)
 	if err != nil {
 		return nil, err
 	}
 
 	return foundUser, nil
+}
+
+func (us *userService) updateToken(user *User) error {
+	token, err := us.session.CreateToken(user.Email)
+	if err != nil {
+		return err
+	}
+	user.AccessToken = token
+	update := struct {
+		AccessToken string `json:":t"`
+	}{
+		AccessToken: token,
+	}
+	updateExp := "set access_token = :t"
+	return us.UserDB.Update(user, update, updateExp)
 }
 
 type userValFunc func(*User) error
