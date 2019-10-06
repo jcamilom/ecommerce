@@ -11,10 +11,10 @@ import (
 
 var (
 	// The DB table name for users
-	dbTableName = "Users"
+	dbUsersTableName = "Users"
 
 	// The DB primary key for users
-	dbKeyName = "email"
+	dbUsersKeyName = "email"
 
 	// ErrNotFound is returned when a resource cannot be found
 	// in the database.
@@ -293,7 +293,12 @@ type userDB struct {
 // If the user is not found, we will return ErrNotFound
 func (udb *userDB) ByEmail(email string) (*User, error) {
 	user := new(User)
-	found, err := udb.db.GetItem(dbKeyName, email, dbTableName, user)
+	key := struct {
+		Email string `json:"email"`
+	}{
+		Email: email,
+	}
+	found, err := udb.db.GetItem(key, dbUsersTableName, user)
 	if err != nil {
 		return nil, err
 	} else if found == false {
@@ -305,5 +310,5 @@ func (udb *userDB) ByEmail(email string) (*User, error) {
 
 // Create will create the provided user in the database
 func (udb *userDB) Create(user *User) error {
-	return udb.db.PutItem(dbTableName, user)
+	return udb.db.PutItem(dbUsersTableName, user)
 }

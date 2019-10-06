@@ -17,15 +17,16 @@ type DB struct{}
 
 // GetItem gets an item from the database. If nothing is found false is returned
 // as the first argument. Otherwise true is returned
-func (db *DB) GetItem(keyName string, keyValue string, tableName string, dst interface{}) (bool, error) {
+func (db *DB) GetItem(key interface{}, tableName string, dst interface{}) (bool, error) {
+	_key, err := dynamodbattribute.MarshalMap(key)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to DynamoDB marshal getItem key, %v", err))
+		return false, err
+	}
 	// Prepare the input for the query.
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			keyName: {
-				S: aws.String(keyValue),
-			},
-		},
+		Key:       _key,
 	}
 
 	// Retrieve the item from DynamoDB. If no matching item is found
@@ -50,7 +51,6 @@ func (db *DB) GetItem(keyName string, keyValue string, tableName string, dst int
 func (db *DB) PutItem(tableName string, item interface{}) error {
 	av, err := dynamodbattribute.MarshalMap(item)
 	if err != nil {
-		// Bad request
 		log.Println(fmt.Sprintf("failed to DynamoDB marshal Record, %v", err))
 		return err
 	}
@@ -61,4 +61,32 @@ func (db *DB) PutItem(tableName string, item interface{}) error {
 	}
 	_, err = _db.PutItem(input)
 	return err
+}
+
+// UpdateItem update an specific item in the db
+func (db *DB) UpdateItem(tableName string, key interface{}, update interface{}, updateExp string) error {
+	_key, err := dynamodbattribute.MarshalMap(key)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to DynamoDB marshal update key, %v", err))
+		return err
+	}
+	_update, err := dynamodbattribute.MarshalMap(update)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to DynamoDB marshal update value, %v", err))
+		return err
+	}
+	input := &dynamodb.UpdateItemInput{
+		Key:                       _key,
+		TableName:                 aws.String(tableName),
+		UpdateExpression:          aws.String(updateExp),
+		ExpressionAttributeValues: _update,
+		ReturnValues:              aws.String("UPDATED_NEW"),
+	}
+
+	_, err = _db.UpdateItem(input)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to DynamoDB update item, %v", err))
+		return err
+	}
+	return nil
 }

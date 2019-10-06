@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,32 +16,18 @@ var (
 	port = 3000
 )
 
-func getUserHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
-	us := models.NewUserService()
-	user, err := us.ByEmail(vars["user"])
-	if err != nil {
-		if err == models.ErrNotFound {
-			w.WriteHeader(http.StatusNotFound)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	} else {
-		json.NewEncoder(w).Encode(user)
-	}
-}
-
 func main() {
 	loadEnvVars()
 
 	us := models.NewUserService()
 	usersC := controllers.NewUsers(us)
+	ps := models.NewProductsService()
+	productsC := controllers.NewProducts(ps)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/login", usersC.Login).Methods("POST")
 	r.HandleFunc("/users", usersC.Create).Methods("POST")
-	r.HandleFunc("/users/{user}", getUserHandler).Methods("GET")
+	r.HandleFunc("/products/{id}", productsC.GetProduct).Methods("GET")
 	fmt.Printf("Starting the server on :%d...\n", port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port), r)
 }
