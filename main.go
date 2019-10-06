@@ -6,6 +6,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/jcamilom/ecommerce/controllers"
+	"github.com/jcamilom/ecommerce/models"
+
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
@@ -14,29 +17,31 @@ var (
 	port = 3000
 )
 
-type User struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func getUserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
-	usr, err := getUser(vars["user"])
+	us := models.NewUserService()
+	user, err := us.ByEmail(vars["user"])
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	} else if usr != nil {
-		json.NewEncoder(w).Encode(usr)
+		if err == models.ErrNotFound {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	} else {
-		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(user)
 	}
 }
 
 func main() {
 	loadEnvVars()
+
+	us := models.NewUserService()
+	usersC := controllers.NewUsers(us)
+
 	r := mux.NewRouter()
+	r.HandleFunc("/login", usersC.Login).Methods("POST")
+	r.HandleFunc("/users", usersC.Create).Methods("POST")
 	r.HandleFunc("/users/{user}", getUserHandler).Methods("GET")
 	fmt.Printf("Starting the server on :%d...\n", port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port), r)
