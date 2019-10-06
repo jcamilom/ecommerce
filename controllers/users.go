@@ -31,7 +31,7 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
-	if ur.Email == "" || ur.Name == "" || ur.Password == "" {
+	if ur.Name == "" || ur.Password == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -42,13 +42,20 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		Email:    ur.Email,
 		Password: ur.Password,
 	}
-	if err := u.us.Create(&user); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	} else {
+	err = u.us.Create(&user)
+	switch err {
+	case models.ErrEmailRequired, models.ErrEmailInvalid, models.ErrEmailTaken:
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(&response{
+			Message: err.Error(),
+		})
+	case nil:
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(&response{
 			Message: fmt.Sprintf("User %v created!", user.Name),
 		})
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
