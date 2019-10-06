@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"log"
 
 	"github.com/stellar/go/clients/horizonclient"
@@ -32,4 +33,19 @@ func (ss *StellarService) CreateAccount() (*keypair.Full, error) {
 		return nil, err
 	}
 	return kp, nil
+}
+
+// GetBalance gets the balance of the provided address on the Stellar network
+func (ss *StellarService) GetBalance(address string) (string, error) {
+	accountRequest := horizonclient.AccountRequest{AccountID: address}
+	hAccount0, err := ss.client.AccountDetail(accountRequest)
+	if err != nil {
+		return "", err
+	}
+	for _, balance := range hAccount0.Balances {
+		if balance.Type == "native" {
+			return balance.Balance, nil
+		}
+	}
+	return "", errors.New("Can't find native balance")
 }
