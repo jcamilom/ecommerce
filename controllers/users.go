@@ -31,7 +31,7 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
-	if ur.Name == "" || ur.Password == "" {
+	if ur.Name == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -44,7 +44,7 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	err = u.us.Create(&user)
 	switch err {
-	case models.ErrEmailRequired, models.ErrEmailInvalid, models.ErrEmailTaken:
+	case models.ErrEmailRequired, models.ErrEmailInvalid, models.ErrEmailTaken, models.ErrPasswordRequired, models.ErrPasswordTooShort:
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(&response{
 			Message: err.Error(),
@@ -78,7 +78,7 @@ func (u *Users) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := u.us.Authenticate(ur.Email, ur.Password)
 	switch err {
-	case models.ErrNotFound, models.ErrInvalidPassword:
+	case models.ErrNotFound, models.ErrPasswordIncorrect:
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(&response{
 			Message: "Wrong email - password combination",
