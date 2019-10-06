@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/jcamilom/ecommerce/context"
 	"github.com/jcamilom/ecommerce/models"
 	"github.com/jcamilom/ecommerce/session"
 )
@@ -36,7 +37,9 @@ func (mw *RequireUser) ApplyFn(next http.HandlerFunc) http.HandlerFunc {
 			}
 			return
 		}
-		r.Header.Set("Email", user.Email)
+		ctx := r.Context()
+		ctx = context.WithUser(ctx, user)
+		r = r.WithContext(ctx)
 		log.Printf("User %v authorized\n", user.Email)
 		next(w, r)
 	})

@@ -22,7 +22,7 @@ type Users struct {
 // Create is used to process the register data. This is used
 // to create a new user account.
 //
-// POST /users
+// POST /register
 func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	ur := new(createUserRequest)

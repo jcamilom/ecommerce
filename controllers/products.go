@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/jcamilom/ecommerce/context"
 	"github.com/jcamilom/ecommerce/models"
 )
 
@@ -21,6 +23,12 @@ type Products struct {
 
 func (p *Products) GetProduct(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	user := context.User(r.Context())
+	if user == nil {
+		log.Println("Error while fetching the user from the context")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	vars := mux.Vars(r)
 	product, err := p.ps.ByID(vars["id"])
 	if err != nil {
