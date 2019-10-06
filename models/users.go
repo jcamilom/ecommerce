@@ -65,8 +65,8 @@ type User struct {
 	Name         string `json:"name"`
 	Email        string `json:"email"`
 	Password     string `json:"password"`
-	PasswordHash string `json:"passwordhash"`
-	Token        string `json:"token"`
+	PasswordHash string `json:"password_hash"`
+	AccessToken  string `json:"access_token"`
 }
 
 // UserDB is used to interact with the users database.
@@ -85,6 +85,7 @@ type UserDB interface {
 	ByEmail(email string) (*User, error)
 	// Methods for altering users
 	Create(user *User) error
+	updateToken(user *User) error
 }
 
 // UserService is a set of methods used to manipulate and
@@ -139,6 +140,10 @@ func (us *userService) Authenticate(email, password string) (*User, error) {
 		default:
 			return nil, err
 		}
+	}
+	err = us.UserDB.updateToken(foundUser)
+	if err != nil {
+		return nil, err
 	}
 
 	return foundUser, nil
@@ -203,6 +208,16 @@ func (uv *userValidator) Create(user *User) error {
 	return uv.UserDB.Create(user)
 }
 
+// updateToken set the session token in the db
+func (uv *userValidator) updateToken(user *User) error {
+	err := runUserValFuncs(user, uv.setToken)
+	if err != nil {
+		return err
+	}
+
+	return uv.UserDB.updateToken(user)
+}
+
 // bcryptPassword will hash a user's password with a
 // predefined pepper (userPwPepper) and bcrypt if the
 // Password field is not the empty string
@@ -225,7 +240,7 @@ func (uv *userValidator) setToken(user *User) error {
 	if err != nil {
 		return err
 	}
-	user.Token = token
+	user.AccessToken = token
 	return nil
 }
 
@@ -312,9 +327,7 @@ type userDB struct {
 // If the user is not found, we will return ErrNotFound
 func (udb *userDB) ByEmail(email string) (*User, error) {
 	user := new(User)
-	key := struct {
-		Email string `json:"email"`
-	}{
+	key := userTableQueryKey{
 		Email: email,
 	}
 	found, err := udb.db.GetItem(key, dbUsersTableName, user)
@@ -330,4 +343,23 @@ func (udb *userDB) ByEmail(email string) (*User, error) {
 // Create will create the provided user in the database
 func (udb *userDB) Create(user *User) error {
 	return udb.db.PutItem(dbUsersTableName, user)
+}
+
+// updateToken will update the user token field with the data
+// specified by the provided user
+func (udb *userDB) updateToken(user *User) error {
+	key := userTableQueryKey{
+		Email: user.Email,
+	}
+	update := struct {
+		AccessToken string `json:":t"`
+	}{
+		AccessToken: user.AccessToken,
+	}
+	updateExp := "set access_token = :t"
+	return udb.db.UpdateItem(dbUsersTableName, key, update, updateExp)
+}
+
+type userTableQueryKey struct {
+	Email string `json:"email"`
 }

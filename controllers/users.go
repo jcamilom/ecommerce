@@ -54,7 +54,7 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(&loginResponse{
 		messageResponse{Message: fmt.Sprintf("User %v created!", user.Name)},
-		user.Token,
+		user.AccessToken,
 	})
 }
 
@@ -88,8 +88,9 @@ func (u *Users) Login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	json.NewEncoder(w).Encode(&messageResponse{
-		Message: fmt.Sprintf("User %v authenticated successfully!", user.Name),
+	json.NewEncoder(w).Encode(&loginResponse{
+		messageResponse{Message: fmt.Sprintf("User %v authenticated successfully!", user.Name)},
+		user.AccessToken,
 	})
 }
 
