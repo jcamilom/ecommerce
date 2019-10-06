@@ -99,6 +99,7 @@ type UserService interface {
 	// something goes wrong.
 	Authenticate(email, password string) (*User, error)
 	Register(user *User) error
+	Authorize(token string) (*User, error)
 	UserDB
 }
 
@@ -159,6 +160,22 @@ func (us *userService) Authenticate(email, password string) (*User, error) {
 		return nil, err
 	}
 
+	return foundUser, nil
+}
+
+func (us *userService) Authorize(token string) (*User, error) {
+	email, err := us.session.VerifyToken(token)
+	if err != nil {
+		return nil, err
+	}
+	foundUser, err := us.ByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	// Provided token must be the one from last login
+	if foundUser.AccessToken != token {
+		return nil, session.ErrTokenInvalid
+	}
 	return foundUser, nil
 }
 
