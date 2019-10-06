@@ -31,10 +31,6 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
-	if ur.Name == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 
 	user := models.User{
 		ID:       "1",
@@ -44,7 +40,7 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	err = u.us.Create(&user)
 	switch err {
-	case models.ErrEmailRequired, models.ErrEmailInvalid, models.ErrEmailTaken, models.ErrPasswordRequired, models.ErrPasswordTooShort:
+	case models.ErrEmailRequired, models.ErrEmailInvalid, models.ErrEmailTaken, models.ErrPasswordRequired, models.ErrPasswordTooShort, models.ErrNameRequired:
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(&response{
 			Message: err.Error(),

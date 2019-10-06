@@ -43,6 +43,10 @@ var (
 	// ErrPasswordTooShort is returned when an update or create is
 	// attempted with a user password that is less than 8 characters.
 	ErrPasswordTooShort = errors.New("models: password must be at least 8 characters long")
+
+	// ErrNameRequired is returned when a name is not provided
+	// when creating a user
+	ErrNameRequired = errors.New("models: name is required")
 )
 
 const userPwPepper = "secret-random-string"
@@ -179,7 +183,10 @@ func (uv *userValidator) Create(user *User) error {
 		uv.normalizeEmail,
 		uv.requireEmail,
 		uv.emailFormat,
-		uv.emailIsAvail)
+		uv.emailIsAvail,
+		uv.normalizeName,
+		uv.requiredName,
+	)
 	if err != nil {
 		return err
 	}
@@ -252,6 +259,18 @@ func (uv *userValidator) passwordMinLength(user *User) error {
 func (uv *userValidator) passwordRequired(user *User) error {
 	if user.Password == "" {
 		return ErrPasswordRequired
+	}
+	return nil
+}
+
+func (uv *userValidator) normalizeName(user *User) error {
+	user.Name = strings.TrimSpace(user.Name)
+	return nil
+}
+
+func (uv *userValidator) requiredName(user *User) error {
+	if user.Name == "" {
+		return ErrNameRequired
 	}
 	return nil
 }
