@@ -1,9 +1,18 @@
 package session
 
 import (
+	"errors"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+)
+
+var (
+	// ErrTokenExpired is returned when the session token has expired.
+	ErrTokenExpired = errors.New("session: token expired")
+
+	// ErrTokenInvalid is returned when the session token is invalid.
+	ErrTokenInvalid = errors.New("session: token invalid")
 )
 
 func NewSessionService(expireTime int, tokenKey string) *Session {
@@ -40,6 +49,30 @@ func (session *Session) CreateToken(username string) (string, error) {
 		return "", err
 	}
 	return tokenString, nil
+}
+
+func (session *Session) VerifyToken(token string) (string, error) {
+	// Initialize a new instance of `Claims`
+	claims := &Claims{}
+
+	// Parse the JWT string and store the result in `claims`.
+	// This method will return an error if the token is invalid
+	// (if it has expired according to the expiry time we set on sign in),
+	// or if the signature does not match
+	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+		return session.tokenKey, nil
+	})
+	if err != nil {
+		if err == jwt.ErrSignatureInvalid {
+			return "", ErrTokenInvalid
+		}
+		return "", err
+	}
+	if !tkn.Valid {
+		return "", ErrTokenExpired
+	}
+	// Finally, return the username
+	return claims.Username, nil
 }
 
 // Claims will help to encoded to a JWT.
