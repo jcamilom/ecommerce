@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jcamilom/ecommerce/db"
+	"github.com/jcamilom/ecommerce/session"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -50,6 +51,10 @@ var (
 )
 
 const userPwPepper = "secret-random-string"
+const sessionKey = "my_secret_key"
+
+// Token expire time in minutes
+const sessionExpireTime = 5
 
 // User represents the user model stored in the database
 // This is used for user accounts, storing both an email
@@ -60,7 +65,8 @@ type User struct {
 	Name         string `json:"name"`
 	Email        string `json:"email"`
 	Password     string `json:"password"`
-	PasswordHash string `json:"passwordhash"`
+	PasswordHash string `json:"password_hash"`
+	AccessToken  string `json:"access_token"`
 }
 
 // UserDB is used to interact with the users database.
@@ -79,6 +85,7 @@ type UserDB interface {
 	ByEmail(email string) (*User, error)
 	// Methods for altering users
 	Create(user *User) error
+	Update(user *User, update interface{}, updateExp string) error
 }
 
 // UserService is a set of methods used to manipulate and
@@ -91,14 +98,18 @@ type UserService interface {
 	// ErrNotFound, ErrPasswordIncorrect, or another error if
 	// something goes wrong.
 	Authenticate(email, password string) (*User, error)
+	Register(user *User) error
+	Authorize(token string) (*User, error)
 	UserDB
 }
 
 func NewUserService() UserService {
 	udb := newUserDB()
+	session := session.NewSessionService(sessionExpireTime, sessionKey)
 	uv := newUserValidator(udb)
 	return &userService{
-		UserDB: uv,
+		session: session,
+		UserDB:  uv,
 	}
 }
 
@@ -106,6 +117,17 @@ var _ UserService = &userService{}
 
 type userService struct {
 	UserDB
+	session *session.Session
+}
+
+// Register is used to register a new user in the db. Additionally
+// an access token is created for the user and returned
+func (us *userService) Register(user *User) error {
+	err := us.UserDB.Create(user)
+	if err != nil {
+		return err
+	}
+	return us.updateToken(user)
 }
 
 // Authenticate can be used to authenticate a user with the
@@ -133,8 +155,43 @@ func (us *userService) Authenticate(email, password string) (*User, error) {
 			return nil, err
 		}
 	}
+	err = us.updateToken(foundUser)
+	if err != nil {
+		return nil, err
+	}
 
 	return foundUser, nil
+}
+
+func (us *userService) Authorize(token string) (*User, error) {
+	email, err := us.session.VerifyToken(token)
+	if err != nil {
+		return nil, err
+	}
+	foundUser, err := us.ByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	// Provided token must be the one from last login
+	if foundUser.AccessToken != token {
+		return nil, session.ErrTokenInvalid
+	}
+	return foundUser, nil
+}
+
+func (us *userService) updateToken(user *User) error {
+	token, err := us.session.CreateToken(user.Email)
+	if err != nil {
+		return err
+	}
+	user.AccessToken = token
+	update := struct {
+		AccessToken string `json:":t"`
+	}{
+		AccessToken: token,
+	}
+	updateExp := "set access_token = :t"
+	return us.UserDB.Update(user, update, updateExp)
 }
 
 type userValFunc func(*User) error
@@ -191,6 +248,11 @@ func (uv *userValidator) Create(user *User) error {
 		return err
 	}
 	return uv.UserDB.Create(user)
+}
+
+// Update update the provided user with the update key and updated expression.
+func (uv *userValidator) Update(user *User, update interface{}, updateExp string) error {
+	return uv.UserDB.Update(user, update, updateExp)
 }
 
 // bcryptPassword will hash a user's password with a
@@ -293,9 +355,7 @@ type userDB struct {
 // If the user is not found, we will return ErrNotFound
 func (udb *userDB) ByEmail(email string) (*User, error) {
 	user := new(User)
-	key := struct {
-		Email string `json:"email"`
-	}{
+	key := userTableQueryKey{
 		Email: email,
 	}
 	found, err := udb.db.GetItem(key, dbUsersTableName, user)
@@ -311,4 +371,17 @@ func (udb *userDB) ByEmail(email string) (*User, error) {
 // Create will create the provided user in the database
 func (udb *userDB) Create(user *User) error {
 	return udb.db.PutItem(dbUsersTableName, user)
+}
+
+// updateToken will update the user token field with the data
+// specified by the provided user
+func (udb *userDB) Update(user *User, update interface{}, updateExp string) error {
+	key := userTableQueryKey{
+		Email: user.Email,
+	}
+	return udb.db.UpdateItem(dbUsersTableName, key, update, updateExp)
+}
+
+type userTableQueryKey struct {
+	Email string `json:"email"`
 }

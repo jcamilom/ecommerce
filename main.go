@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/jcamilom/ecommerce/controllers"
+	"github.com/jcamilom/ecommerce/middleware"
 	"github.com/jcamilom/ecommerce/models"
 
 	"github.com/gorilla/mux"
@@ -24,10 +25,14 @@ func main() {
 	ps := models.NewProductsService()
 	productsC := controllers.NewProducts(ps)
 
+	requireUserMw := middleware.RequireUser{
+		UserService: us,
+	}
+
 	r := mux.NewRouter()
 	r.HandleFunc("/login", usersC.Login).Methods("POST")
 	r.HandleFunc("/users", usersC.Create).Methods("POST")
-	r.HandleFunc("/products/{id}", productsC.GetProduct).Methods("GET")
+	r.HandleFunc("/products/{id}", requireUserMw.ApplyFn(productsC.GetProduct)).Methods("GET")
 	fmt.Printf("Starting the server on :%d...\n", port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port), r)
 }

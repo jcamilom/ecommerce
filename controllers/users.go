@@ -38,21 +38,24 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		Email:    ur.Email,
 		Password: ur.Password,
 	}
-	err = u.us.Create(&user)
-	switch err {
-	case models.ErrEmailRequired, models.ErrEmailInvalid, models.ErrEmailTaken, models.ErrPasswordRequired, models.ErrPasswordTooShort, models.ErrNameRequired:
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(&response{
-			Message: err.Error(),
-		})
-	case nil:
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(&response{
-			Message: fmt.Sprintf("User %v created!", user.Name),
-		})
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
+	err = u.us.Register(&user)
+	if err != nil {
+		switch err {
+		case models.ErrEmailRequired, models.ErrEmailInvalid, models.ErrEmailTaken, models.ErrPasswordRequired, models.ErrPasswordTooShort, models.ErrNameRequired:
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(&messageResponse{
+				Message: err.Error(),
+			})
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
 	}
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(&loginResponse{
+		messageResponse{Message: fmt.Sprintf("User %v created!", user.Name)},
+		user.AccessToken,
+	})
 }
 
 // Login is used to verify the provided email address and
@@ -73,19 +76,22 @@ func (u *Users) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := u.us.Authenticate(ur.Email, ur.Password)
-	switch err {
-	case models.ErrNotFound, models.ErrPasswordIncorrect:
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(&response{
-			Message: "Wrong email - password combination",
-		})
-	case nil:
-		json.NewEncoder(w).Encode(&response{
-			Message: fmt.Sprintf("User %v authenticated successfully!", user.Name),
-		})
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
+	if err != nil {
+		switch err {
+		case models.ErrNotFound, models.ErrPasswordIncorrect:
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(&messageResponse{
+				Message: "Wrong email - password combination",
+			})
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
 	}
+	json.NewEncoder(w).Encode(&loginResponse{
+		messageResponse{Message: fmt.Sprintf("User %v authenticated successfully!", user.Name)},
+		user.AccessToken,
+	})
 }
 
 type createUserRequest struct {
@@ -99,6 +105,11 @@ type loginUserRequest struct {
 	Password string `json:"password"`
 }
 
-type response struct {
+type messageResponse struct {
 	Message string `json:"message"`
+}
+
+type loginResponse struct {
+	messageResponse
+	Token string `json:"token"`
 }
