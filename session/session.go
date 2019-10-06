@@ -66,7 +66,7 @@ func (session *Session) VerifyToken(token string) (string, error) {
 		if err == jwt.ErrSignatureInvalid {
 			return "", ErrTokenInvalid
 		}
-		return "", err
+		return "", ErrTokenExpired
 	}
 	if !tkn.Valid {
 		return "", ErrTokenExpired
