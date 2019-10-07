@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/jcamilom/ecommerce/db"
@@ -16,6 +17,9 @@ var (
 
 	// The DB primary key for users
 	dbUsersKeyName = "email"
+
+	// The e-commerce address on stellar network
+	storeStellarAddress = "GDNTNTTRL2YFCIBWS7ZB3QEJBM57ZUPQ5HASOT2JHKJO3IS3A3D5EVFE"
 
 	// ErrNotFound is returned when a resource cannot be found
 	// in the database.
@@ -120,6 +124,8 @@ type UserService interface {
 	Register(user *User) error
 	Authorize(token string) (*User, error)
 	AddFavorite(user *User, favorite Favorite) error
+	GetBalance(user *User) (float64, error)
+	ExecutePayment(user *User, amount int) error
 	UserDB
 }
 
@@ -233,6 +239,24 @@ func (us *userService) AddFavorite(user *User, favorite Favorite) error {
 	}
 	updateExp := "set favorites = :f"
 	return us.UserDB.Update(user, update, updateExp)
+}
+
+func (us *userService) GetBalance(user *User) (float64, error) {
+	var bal64 float64
+	b, err := us.stellar.GetBalance(user.Wallet.Address)
+	if err != nil {
+		return bal64, err
+	}
+	bal64, err = strconv.ParseFloat(b, 64)
+	if err != nil {
+		return bal64, err
+	}
+	return bal64, nil
+}
+
+func (us *userService) ExecutePayment(user *User, amount int) error {
+	amountStr := strconv.Itoa(amount)
+	return us.stellar.ExecutePayment(user.Wallet.Seed, storeStellarAddress, amountStr)
 }
 
 func (us *userService) updateToken(user *User) error {

@@ -10,16 +10,18 @@ import (
 )
 
 // NewPurchases is used to create a new Purchases controller
-func NewPurchases(ps models.PurchaseService, prs models.ProductsService) *Purchases {
+func NewPurchases(pus models.PurchaseService, ps models.ProductsService, us models.UserService) *Purchases {
 	return &Purchases{
+		pus: pus,
 		ps:  ps,
-		prs: prs,
+		us:  us,
 	}
 }
 
 type Purchases struct {
-	ps  models.PurchaseService
-	prs models.ProductsService
+	pus models.PurchaseService
+	ps  models.ProductsService
+	us  models.UserService
 }
 
 // Create registers a new purchase
@@ -43,7 +45,7 @@ func (p *Purchases) Create(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	product, err := p.prs.ByID(pr.ID)
+	product, err := p.ps.ByID(pr.ID)
 	if err != nil {
 		switch err {
 		case models.ErrNotFound:
@@ -52,19 +54,39 @@ func (p *Purchases) Create(w http.ResponseWriter, r *http.Request) {
 				Message: "Product not found at the store's stock",
 			})
 		default:
+			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		return
 	}
+	balance, err := p.us.GetBalance(user)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if float64(product.Price) > balance {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(&messageResponse{
+			Message: "Balance is not enough to execute the payment",
+		})
+		return
+	}
+	err = p.us.ExecutePayment(user, product.Price)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	purchase := &models.Purchase{
-		Email: "juan@mail.com",
+		Email: user.Email,
 		Item: models.PurchaseItem{
 			ID:    product.ID,
 			Name:  product.Name,
 			Price: product.Price,
 		},
 	}
-	err = p.ps.Create(purchase)
+	err = p.pus.Create(purchase)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
