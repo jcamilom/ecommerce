@@ -45,6 +45,9 @@ func (p *Products) GetProduct(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AddFavorite is used to add a new product to the user's favorites list
+//
+// POST /users/favorites
 func (p *Products) AddFavorite(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	user := context.User(r.Context())

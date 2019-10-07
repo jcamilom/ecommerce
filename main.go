@@ -33,6 +33,7 @@ func main() {
 	r.HandleFunc("/login", usersC.Login).Methods("POST")
 	r.HandleFunc("/register", usersC.Create).Methods("POST")
 	r.HandleFunc("/users/favorites", requireUserMw.ApplyFn(productsC.AddFavorite)).Methods("POST")
+	r.HandleFunc("/users/favorites", requireUserMw.ApplyFn(usersC.GetFavorites)).Methods("GET")
 	r.HandleFunc("/products/{id}", requireUserMw.ApplyFn(productsC.GetProduct)).Methods("GET")
 	fmt.Printf("Starting the server on :%d...\n", port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port), r)
