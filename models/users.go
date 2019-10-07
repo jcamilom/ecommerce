@@ -48,6 +48,10 @@ var (
 	// ErrNameRequired is returned when a name is not provided
 	// when creating a user
 	ErrNameRequired = errors.New("models: name is required")
+
+	// ErrIsFavorite is returned when an user tries to add a new favorite that
+	// is already on the favorites list.
+	ErrIsFavorite = errors.New("models: product is already a favorite")
 )
 
 const userPwPepper = "secret-random-string"
@@ -61,12 +65,20 @@ const sessionExpireTime = 5
 // address and a password so users can log in and gain
 // access to their content.
 type User struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Email        string `json:"email"`
-	Password     string `json:"password"`
-	PasswordHash string `json:"password_hash"`
-	AccessToken  string `json:"access_token"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Email        string     `json:"email"`
+	Password     string     `json:"password"`
+	PasswordHash string     `json:"password_hash"`
+	AccessToken  string     `json:"access_token"`
+	Favorites    []Favorite `json:"favorites"`
+}
+
+// Favorite represents a product to be add to the favorite list
+type Favorite struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Price int    `json:"price"`
 }
 
 // UserDB is used to interact with the users database.
@@ -100,6 +112,7 @@ type UserService interface {
 	Authenticate(email, password string) (*User, error)
 	Register(user *User) error
 	Authorize(token string) (*User, error)
+	AddFavorite(user *User, favorite Favorite) error
 	UserDB
 }
 
@@ -179,6 +192,31 @@ func (us *userService) Authorize(token string) (*User, error) {
 	return foundUser, nil
 }
 
+func (us *userService) AddFavorite(user *User, favorite Favorite) error {
+	user, err := us.UserDB.ByEmail(user.Email)
+	if err != nil {
+		return err
+	}
+	var isExistingFavorite bool
+	for _, f := range user.Favorites {
+		if f.ID == favorite.ID {
+			isExistingFavorite = true
+			break
+		}
+	}
+	if isExistingFavorite {
+		return ErrIsFavorite
+	}
+	user.Favorites = append(user.Favorites, favorite)
+	update := struct {
+		Favorites []Favorite `json:":f"`
+	}{
+		Favorites: user.Favorites,
+	}
+	updateExp := "set favorites = :f"
+	return us.UserDB.Update(user, update, updateExp)
+}
+
 func (us *userService) updateToken(user *User) error {
 	token, err := us.session.CreateToken(user.Email)
 	if err != nil {
@@ -243,6 +281,7 @@ func (uv *userValidator) Create(user *User) error {
 		uv.emailIsAvail,
 		uv.normalizeName,
 		uv.requiredName,
+		uv.setEmptyFavorites,
 	)
 	if err != nil {
 		return err
@@ -334,6 +373,11 @@ func (uv *userValidator) requiredName(user *User) error {
 	if user.Name == "" {
 		return ErrNameRequired
 	}
+	return nil
+}
+
+func (uv *userValidator) setEmptyFavorites(user *User) error {
+	user.Favorites = []Favorite{}
 	return nil
 }
 

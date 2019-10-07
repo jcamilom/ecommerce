@@ -3,8 +3,10 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
+	"github.com/jcamilom/ecommerce/context"
 	"github.com/jcamilom/ecommerce/models"
 )
 
@@ -22,7 +24,7 @@ type Users struct {
 // Create is used to process the register data. This is used
 // to create a new user account.
 //
-// POST /users
+// POST /register
 func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	ur := new(createUserRequest)
@@ -92,6 +94,20 @@ func (u *Users) Login(w http.ResponseWriter, r *http.Request) {
 		messageResponse{Message: fmt.Sprintf("User %v authenticated successfully!", user.Name)},
 		user.AccessToken,
 	})
+}
+
+// GetFavorites is used to fetch the user favorite products
+//
+// GET /users/favorites
+func (u *Users) GetFavorites(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	user := context.User(r.Context())
+	if user == nil {
+		log.Println("Error while fetching the user from the context")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(user.Favorites)
 }
 
 type createUserRequest struct {

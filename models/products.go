@@ -1,6 +1,8 @@
 package models
 
-import "github.com/jcamilom/ecommerce/db"
+import (
+	"github.com/jcamilom/ecommerce/db"
+)
 
 var (
 	// The DB table name for products
