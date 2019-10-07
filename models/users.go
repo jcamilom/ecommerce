@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/jcamilom/ecommerce/db"
@@ -16,6 +17,9 @@ var (
 
 	// The DB primary key for users
 	dbUsersKeyName = "email"
+
+	// StoreStellarAddress is the e-commerce address on stellar network
+	StoreStellarAddress = "GDNTNTTRL2YFCIBWS7ZB3QEJBM57ZUPQ5HASOT2JHKJO3IS3A3D5EVFE"
 
 	// ErrNotFound is returned when a resource cannot be found
 	// in the database.
@@ -72,6 +76,7 @@ type User struct {
 	PasswordHash string     `json:"password_hash"`
 	AccessToken  string     `json:"access_token"`
 	Favorites    []Favorite `json:"favorites"`
+	Wallet       Wallet     `json:"wallet"`
 }
 
 // Favorite represents a product to be add to the favorite list
@@ -79,6 +84,12 @@ type Favorite struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Price int    `json:"price"`
+}
+
+// Wallet represents the keypair for the cryptocurrency system
+type Wallet struct {
+	Seed    string `json:"seed"`
+	Address string `json:"address"`
 }
 
 // UserDB is used to interact with the users database.
@@ -113,6 +124,8 @@ type UserService interface {
 	Register(user *User) error
 	Authorize(token string) (*User, error)
 	AddFavorite(user *User, favorite Favorite) error
+	GetBalance(user *User) (float64, error)
+	ExecutePayment(user *User, amount int) error
 	UserDB
 }
 
@@ -121,8 +134,9 @@ func NewUserService() UserService {
 	session := session.NewSessionService(sessionExpireTime, sessionKey)
 	uv := newUserValidator(udb)
 	return &userService{
-		session: session,
 		UserDB:  uv,
+		session: session,
+		stellar: NewStellarService(),
 	}
 }
 
@@ -131,6 +145,7 @@ var _ UserService = &userService{}
 type userService struct {
 	UserDB
 	session *session.Session
+	stellar *StellarService
 }
 
 // Register is used to register a new user in the db. Additionally
@@ -140,7 +155,16 @@ func (us *userService) Register(user *User) error {
 	if err != nil {
 		return err
 	}
-	return us.updateToken(user)
+	// Creates the stellar account
+	kp, err := us.stellar.CreateAccount()
+	if err != nil {
+		return err
+	}
+	user.Wallet = Wallet{
+		Seed:    kp.Seed(),
+		Address: kp.Address(),
+	}
+	return us.updateTokenAndWallet(user)
 }
 
 // Authenticate can be used to authenticate a user with the
@@ -217,6 +241,24 @@ func (us *userService) AddFavorite(user *User, favorite Favorite) error {
 	return us.UserDB.Update(user, update, updateExp)
 }
 
+func (us *userService) GetBalance(user *User) (float64, error) {
+	var bal64 float64
+	b, err := us.stellar.GetBalance(user.Wallet.Address)
+	if err != nil {
+		return bal64, err
+	}
+	bal64, err = strconv.ParseFloat(b, 64)
+	if err != nil {
+		return bal64, err
+	}
+	return bal64, nil
+}
+
+func (us *userService) ExecutePayment(user *User, amount int) error {
+	amountStr := strconv.Itoa(amount)
+	return us.stellar.ExecutePayment(user.Wallet.Seed, StoreStellarAddress, amountStr)
+}
+
 func (us *userService) updateToken(user *User) error {
 	token, err := us.session.CreateToken(user.Email)
 	if err != nil {
@@ -229,6 +271,23 @@ func (us *userService) updateToken(user *User) error {
 		AccessToken: token,
 	}
 	updateExp := "set access_token = :t"
+	return us.UserDB.Update(user, update, updateExp)
+}
+
+func (us *userService) updateTokenAndWallet(user *User) error {
+	token, err := us.session.CreateToken(user.Email)
+	if err != nil {
+		return err
+	}
+	user.AccessToken = token
+	update := struct {
+		AccessToken string `json:":t"`
+		Wallet      Wallet `json:":w"`
+	}{
+		AccessToken: token,
+		Wallet:      user.Wallet,
+	}
+	updateExp := "set access_token = :t, wallet = :w"
 	return us.UserDB.Update(user, update, updateExp)
 }
 

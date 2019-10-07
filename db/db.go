@@ -90,3 +90,26 @@ func (db *DB) UpdateItem(tableName string, key interface{}, update interface{}, 
 	}
 	return nil
 }
+
+func (db *DB) GetItems(tableName string, key interface{}, keyCondExp string, projectionExp string, expAttNames map[string]*string, dst interface{}) error {
+	_key, err := dynamodbattribute.MarshalMap(key)
+	// Prepare the input for the query.
+	input := &dynamodb.QueryInput{
+		ExpressionAttributeValues: _key,
+		KeyConditionExpression:    aws.String(keyCondExp),
+		ProjectionExpression:      aws.String(projectionExp),
+		ExpressionAttributeNames:  expAttNames,
+		TableName:                 aws.String(tableName),
+	}
+	result, err := _db.Query(input)
+	if err != nil {
+		fmt.Println("Failed to query table", tableName)
+		return err
+	}
+
+	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, dst)
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -110,6 +110,48 @@ func (u *Users) GetFavorites(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user.Favorites)
 }
 
+// GetBalance returns the users wallet balance
+//
+// GET /users/balance
+func (u *Users) GetBalance(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	user := context.User(r.Context())
+	if user == nil {
+		log.Println("Error while fetching the user from the context")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	balance, err := u.us.GetBalance(user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(&messageResponse{
+		Message: fmt.Sprintf("User balance is '%v' lumens", balance),
+	})
+}
+
+// GetStoreBalance returns the balance of the e-commerce in the
+// stellar network
+//
+// GET /store/balance
+func (u *Users) GetStoreBalance(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	user := &models.User{
+		Wallet: models.Wallet{
+			Address: models.StoreStellarAddress,
+		},
+	}
+	balance, err := u.us.GetBalance(user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(&messageResponse{
+		Message: fmt.Sprintf("The store balance is '%v' lumens", balance),
+	})
+}
+
 type createUserRequest struct {
 	Email    string `json:"email"`
 	Name     string `json:"name"`
