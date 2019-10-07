@@ -80,9 +80,9 @@ func (p *Purchases) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	purchase := &models.Purchase{
 		Email: user.Email,
-		Item: models.PurchaseItem{
+		ItemP: models.PurchaseItem{
 			ID:    product.ID,
-			Name:  product.Name,
+			NameP: product.Name,
 			Price: product.Price,
 		},
 	}
@@ -94,6 +94,26 @@ func (p *Purchases) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusCreated)
 	log.Println("Purchase created")
+}
+
+// Get fetchs the purchases for a specific user
+//
+// GET /purchases
+func (p *Purchases) Get(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	user := context.User(r.Context())
+	if user == nil {
+		log.Println("Error while fetching the user from the context")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	purchases, err := p.pus.ByEmail(user.Email)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	log.Println("Purchases fetched")
+	json.NewEncoder(w).Encode(purchases)
 }
 
 type createPurchaseRequest struct {

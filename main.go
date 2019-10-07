@@ -39,6 +39,7 @@ func main() {
 	r.HandleFunc("/users/favorites", requireUserMw.ApplyFn(usersC.GetFavorites)).Methods("GET")
 	r.HandleFunc("/store/balance", usersC.GetStoreBalance).Methods("GET")
 	r.HandleFunc("/products/{id}", requireUserMw.ApplyFn(productsC.GetProduct)).Methods("GET")
+	r.HandleFunc("/purchases", requireUserMw.ApplyFn(purchaseC.Get)).Methods("GET")
 	r.HandleFunc("/purchases", requireUserMw.ApplyFn(purchaseC.Create)).Methods("POST")
 	fmt.Printf("Starting the server on :%d...\n", port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port), r)
