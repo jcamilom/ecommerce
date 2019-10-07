@@ -82,7 +82,7 @@ Representa un registro de item comprado en la plataforma por algún usuario
 | Field         | Type          |
 | ------------- |:-------------:|
 | ID      | string |
-| Name      | string    |
+| Email      | string    |
 | Date | string      |
 | Item | PurchaseItem      |
 
