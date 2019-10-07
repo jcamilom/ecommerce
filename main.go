@@ -23,7 +23,7 @@ func main() {
 	us := models.NewUserService()
 	usersC := controllers.NewUsers(us)
 	ps := models.NewProductsService()
-	productsC := controllers.NewProducts(ps)
+	productsC := controllers.NewProducts(ps, us)
 
 	requireUserMw := middleware.RequireUser{
 		UserService: us,
@@ -32,6 +32,7 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/login", usersC.Login).Methods("POST")
 	r.HandleFunc("/register", usersC.Create).Methods("POST")
+	r.HandleFunc("/users/favorites", requireUserMw.ApplyFn(productsC.AddFavorite)).Methods("POST")
 	r.HandleFunc("/products/{id}", requireUserMw.ApplyFn(productsC.GetProduct)).Methods("GET")
 	fmt.Printf("Starting the server on :%d...\n", port)
 	http.ListenAndServe(fmt.Sprintf(":%d", port), r)
