@@ -57,7 +57,6 @@ func (p *Purchases) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	purchase := &models.Purchase{
-		ID:    "1000",
 		Email: "juan@mail.com",
 		Item: models.PurchaseItem{
 			ID:    product.ID,

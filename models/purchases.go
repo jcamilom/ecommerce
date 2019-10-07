@@ -1,9 +1,11 @@
 package models
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/jcamilom/ecommerce/db"
+	"github.com/mitchellh/hashstructure"
 )
 
 var (
@@ -80,7 +82,10 @@ type purchaseValidator struct {
 
 // Create will fill necessary data for the purchase
 func (pv *purchaseValidator) Create(purchase *Purchase) error {
-	err := runPurchaseValFuncs(purchase, pv.setCreationTime)
+	err := runPurchaseValFuncs(purchase,
+		pv.setCreationTime,
+		pv.setID,
+	)
 	if err != nil {
 		return err
 	}
@@ -89,6 +94,17 @@ func (pv *purchaseValidator) Create(purchase *Purchase) error {
 
 func (pv *purchaseValidator) setCreationTime(purchase *Purchase) error {
 	purchase.Date = time.Now()
+	return nil
+}
+
+func (pv *purchaseValidator) setID(purchase *Purchase) error {
+	hash, err := hashstructure.Hash(purchase, nil)
+	if err != nil {
+		return err
+	}
+
+	hashStr := strconv.FormatUint(hash, 10)
+	purchase.ID = hashStr
 	return nil
 }
 
