@@ -18,8 +18,8 @@ var (
 	// The DB primary key for users
 	dbUsersKeyName = "email"
 
-	// The e-commerce address on stellar network
-	storeStellarAddress = "GDNTNTTRL2YFCIBWS7ZB3QEJBM57ZUPQ5HASOT2JHKJO3IS3A3D5EVFE"
+	// StoreStellarAddress is the e-commerce address on stellar network
+	StoreStellarAddress = "GDNTNTTRL2YFCIBWS7ZB3QEJBM57ZUPQ5HASOT2JHKJO3IS3A3D5EVFE"
 
 	// ErrNotFound is returned when a resource cannot be found
 	// in the database.
@@ -256,7 +256,7 @@ func (us *userService) GetBalance(user *User) (float64, error) {
 
 func (us *userService) ExecutePayment(user *User, amount int) error {
 	amountStr := strconv.Itoa(amount)
-	return us.stellar.ExecutePayment(user.Wallet.Seed, storeStellarAddress, amountStr)
+	return us.stellar.ExecutePayment(user.Wallet.Seed, StoreStellarAddress, amountStr)
 }
 
 func (us *userService) updateToken(user *User) error {

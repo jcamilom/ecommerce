@@ -131,6 +131,27 @@ func (u *Users) GetBalance(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetStoreBalance returns the balance of the e-commerce in the
+// stellar network
+//
+// GET /store/balance
+func (u *Users) GetStoreBalance(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	user := &models.User{
+		Wallet: models.Wallet{
+			Address: models.StoreStellarAddress,
+		},
+	}
+	balance, err := u.us.GetBalance(user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(&messageResponse{
+		Message: fmt.Sprintf("The store balance is '%v' lumens", balance),
+	})
+}
+
 type createUserRequest struct {
 	Email    string `json:"email"`
 	Name     string `json:"name"`
